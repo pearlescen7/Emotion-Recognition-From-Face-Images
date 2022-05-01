@@ -28,7 +28,7 @@ print(f"{len(test_loader)*batch_size} test data loaded.")
 EPOCHS = 100
 LR = 0.001
 MOMENTUM = 0.9
-SAVE_PATH = "../models/VGG/"
+SAVE_PATH = "../models/VGG/vgg11_bn_KDEF.pt"
 
 model = M.vgg11_bn(num_classes=kdef_dataset.num_classes).cuda()
 
