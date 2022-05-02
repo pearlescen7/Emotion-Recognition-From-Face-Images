@@ -25,8 +25,7 @@ def main():
     model.load_state_dict(torch.load(model_path))
     model.eval()
     img_transforms = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
+            transforms.Resize((224,224)),
             transforms.ToTensor()
             ])
 

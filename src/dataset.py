@@ -117,8 +117,7 @@ def main():
 
     kdef_dataset = KDEFDataset(
         transform=transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
+            transforms.Resize((224,224)),
             transforms.ToTensor()
         ]))
 
