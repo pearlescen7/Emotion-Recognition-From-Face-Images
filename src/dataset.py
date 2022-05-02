@@ -1,4 +1,3 @@
-from numpy import dtype
 from torch.utils.data.dataset import Dataset
 from torch.utils.data.dataloader import DataLoader
 from torchvision import transforms
@@ -6,6 +5,7 @@ import torch
 from PIL import Image
 import os, copy
 import matplotlib.pyplot as plt
+import cv2
 
 class LabeledImage():
     def __init__(self, filename, image, label):
@@ -42,6 +42,8 @@ class KDEFDataset(Dataset):
             6 : "surprised"
         }
 
+        face_detector = cv2.CascadeClassifier("../data/haarcascades/haarcascade_frontalface_alt.xml")
+
         #Dataset is small enough to load all of it to memory
         data_idx = 0
         for dirname, _, filenames in os.walk(root_dir):
@@ -54,9 +56,14 @@ class KDEFDataset(Dataset):
                 # because PIL applies antialiasing. This may lead to significant differences in the performance of a network.
                 # Therefore, it is preferable to train and serve a model with the same input types. 
                 # See also below the antialias parameter, which can help making the output of PIL images and tensors closer.
+                img = cv2.imread(img_path)
+                img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                faces = face_detector.detectMultiScale(img_gray, 1.1, 4)
+                for (x,y,w,h) in faces:
+                    face = cv2.cvtColor(img[y:y+h, x:x+w], cv2.COLOR_BGR2RGB)
+                    pil_face = Image.fromarray(face)
 
-                img = Image.open(img_path)
-                self.data[data_idx] = LabeledImage(filename, img, self.emote2label[label])
+                self.data[data_idx] = LabeledImage(filename, pil_face, self.emote2label[label])
                 data_idx += 1
 
     def __len__(self):
