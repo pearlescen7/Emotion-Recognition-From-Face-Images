@@ -9,15 +9,15 @@ import matplotlib.pyplot as plt
 
 kdef_dataset = KDEFDataset(transform=
 transforms.Compose([
-    transforms.Resize(256), 
-    transforms.CenterCrop(224), 
+    transforms.Resize(224), 
     transforms.ToTensor()
     ]))
 
 train_size = int(0.7*len(kdef_dataset))
 test_size = (len(kdef_dataset) - train_size) // 2
 val_size = len(kdef_dataset) - train_size - test_size
-train_set, test_set, val_set = random_split(kdef_dataset, [train_size, test_size, val_size])
+train_set, test_set, val_set = \
+    random_split(kdef_dataset, [train_size, test_size, val_size], generator=torch.Generator().manual_seed(42))
 
 batch_size = 32
 
