@@ -32,7 +32,14 @@ def main():
 
     face_detector = cv2.CascadeClassifier("../data/haarcascades/haarcascade_frontalface_alt.xml")
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    print(f"Video capture resolution: {width}x{height}")
+   
     while True:
         ret, frame = cap.read()
 
@@ -43,12 +50,12 @@ def main():
         faces = face_detector.detectMultiScale(frame_gray, 1.1, 4)
         
         for (x,y,w,h) in faces:
-            face = frame[y:y+h, x:x+w]
+            face = cv2.cvtColor(frame[y:y+h, x:x+w], cv2.COLOR_BGR2RGB)
             pil_face = Image.fromarray(face)
             input = img_transforms(pil_face)
-            output = model(input)
-            _, predicted = torch.max(output.data, 0)
-            emote, color = idx2emote_and_color[predicted[0]]
+            output = model(input.unsqueeze(0))
+            _, predicted = torch.max(output.data, 1)
+            emote, color = idx2emote_and_color[predicted.item()]
             cv2.rectangle(frame, (x,y), (x+w, y+h), color, 2)
             cv2.putText(frame, emote, (x,y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
