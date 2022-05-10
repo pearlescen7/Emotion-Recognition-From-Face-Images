@@ -6,8 +6,9 @@ import torch.optim as optim
 import torch.nn as nn
 import torch
 import matplotlib.pyplot as plt
-from sklearn.metrics import f1_score, confusion_matrix
-import numpy as np
+from sklearn.metrics import f1_score, ConfusionMatrixDisplay
+import os
+
 
 kdef_dataset = KDEFDataset(transform=
 transforms.Compose([
@@ -21,7 +22,7 @@ val_size = len(kdef_dataset) - train_size - test_size
 train_set, test_set, val_set = \
     random_split(kdef_dataset, [train_size, test_size, val_size], generator=torch.Generator().manual_seed(42))
 
-batch_size = 32
+batch_size = 8
 
 train_loader = KDEFDataLoader(train_set, batch_size=batch_size)
 test_loader = KDEFDataLoader(test_set, batch_size=batch_size)
@@ -36,12 +37,19 @@ LR = 0.001
 MOMENTUM = 0.9
 VALID_LOSS_PER_EPOCH = 4
 TRAIN_LOSS_PER_EPOCH = 8
-SAVE_PATH = "../models/VGG/vgg19_bn_KDEF.pt"
+SAVE_PATH = "../models/EfficientNet/EfficientNet_b7_pretrained_KDEF.pt"
 
 def generate_save_path(idx, save_path=SAVE_PATH):
     return save_path.removesuffix(".pt") + f"_{idx}.pt"
 
-model = M.vgg19_bn(num_classes=kdef_dataset.num_classes).cuda()
+# model = M.efficientnet_b7(num_classes=kdef_dataset.num_classes).cuda()
+from efficientnet_pytorch import EfficientNet
+model = EfficientNet.from_pretrained('efficientnet-b7')
+model._fc= torch.nn.Linear(in_features=model._fc.in_features, out_features=kdef_dataset.num_classes, bias=True)
+model.cuda()
+# from vgg_pytorch import VGG 
+# model = VGG.from_pretrained('vgg19_bn', num_classes=kdef_dataset.num_classes)
+# model.cuda()
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=LR, weight_decay=0.0005)
@@ -50,7 +58,7 @@ scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 micro_f1s = []
 macro_f1s = []
 confusion_mats = []
-def test_loop():
+def test_loop(epoch):
     correct = 0
     total = 0
 
@@ -69,10 +77,8 @@ def test_loop():
         6 : "surprised"
     }
 
-    micro_f1 = 0.0
-    macro_f1 = 0.0
-    confusion_mat = np.zeros((7, 7), dtype=np.int32)
-
+    ground_truth = []
+    predictions = []
     model.eval()
     with torch.no_grad():
         for data in test_loader:
@@ -83,11 +89,12 @@ def test_loop():
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            # print(labels, predicted)
-            micro_f1 += f1_score(labels, predicted, average='micro') * len(data["labels"])
-            macro_f1 += f1_score(labels, predicted, average='macro') * len(data["labels"])
+            ground_truth.extend(list(int(label) for label in labels))
+            predictions.extend(list(int(prediction) for prediction in predicted))
+            # micro_f1 += f1_score(labels, predicted, average='micro') * len(data["labels"])
+            # macro_f1 += f1_score(labels, predicted, average='macro') * len(data["labels"])
             # if epoch == 0:
-            confusion_mat += confusion_matrix(labels, predicted, labels=[0, 1, 2, 3, 4, 5, 6])
+            # confusion_mat += confusion_matrix(labels, predicted, labels=[0, 1, 2, 3, 4, 5, 6])
             
             for idx, (prediction, label) in enumerate(zip(predicted, labels)):
                 if(prediction == label):
@@ -97,9 +104,30 @@ def test_loop():
                 category_total[label2category[label.item()]] += 1
 
     print(f"Accuracy: {100*correct/total}%")
-    micro_f1s.append(micro_f1 / len(test_loader.dataset))
-    macro_f1s.append(macro_f1 / len(test_loader.dataset))
-    confusion_mats.append(confusion_mat)
+
+    micro_f1s.append(f1_score(ground_truth, predictions, average='micro'))
+    macro_f1s.append(f1_score(ground_truth, predictions, average='macro'))
+    # mat = confusion_matrix(ground_truth, predictions, labels=[0, 1, 2, 3, 4, 5, 6])
+    # confusion_mats.append(mat)
+    if epoch % 20 == 0 or epoch == EPOCHS - 1:
+        disp = ConfusionMatrixDisplay.from_predictions(ground_truth,
+        predictions, 
+        labels=[0, 1, 2, 3, 4, 5, 6],
+        normalize='all',
+        display_labels=["afraid","angry","disgusted","happy","neutral","sad","surprised"],
+        xticks_rotation='vertical'
+        )
+        plt.savefig(os.path.join("..", "models", "cm_norm_eff_pretrained.png"))
+        plt.clf()
+        disp = ConfusionMatrixDisplay.from_predictions(ground_truth,
+        predictions, 
+        labels=[0, 1, 2, 3, 4, 5, 6],
+        display_labels=["afraid","angry","disgusted","happy","neutral","sad","surprised"],
+        xticks_rotation='vertical'
+        )
+        plt.savefig(os.path.join("..", "models", "cm_eff_pretrained.png"))
+        plt.clf()
+    
     for category in category_correct:
         print(f"Accuracy for {category}: {100*category_correct[category]/category_total[category]}%")
 
@@ -145,7 +173,7 @@ for epoch in range(EPOCHS):
             print(f"[EPOCH {epoch+1}, BATCH {i+1}, TOTAL {epoch*train_size + i*batch_size}] validation loss: {valid_loss:.8f}")
             model.train()
 
-    test_loop()
+    test_loop(epoch)
 
     if epoch%20==0 and epoch!=0:
         torch.save(model.state_dict(), generate_save_path(epoch))    
@@ -156,20 +184,21 @@ torch.save(model.state_dict(), SAVE_PATH)
 
 train_loss, train_epoch = tuple([list(tup) for tup in zip(*train_losses)])
 valid_loss, valid_epoch = tuple([list(tup) for tup in zip(*validation_losses)])
+plt.clf()
 plt.plot(train_epoch, train_loss)
 plt.plot(valid_epoch, valid_loss)
-plt.title('VGG19 (Batch Normalized) Loss Plot')
+# plt.title('VGG19 (Batch Normalized) Loss Plot')
+plt.title('EfficientNet (B7) Loss Plot')
 plt.ylabel('Loss')
 plt.xlabel('Epoch')
 plt.legend(["Train", "Validation"], loc='upper right')
-plt.savefig("../models/losses.png")
+plt.savefig("../models/losses_eff_pretrained.png")
 
-plt.cla()
+plt.clf()
 plt.plot(list(range(epoch + 1)), micro_f1s)
 plt.plot(list(range(epoch + 1)), macro_f1s)
 plt.title('F1 Scores')
 plt.ylabel('F1 Score')
 plt.xlabel('Epoch')
 plt.legend(['Micro F1', 'Macro F1'], loc='upper right')
-plt.savefig('../models/f1scores.png')
-print(confusion_mats[-1])
+plt.savefig('../models/f1scores_eff_pretrained.png')
