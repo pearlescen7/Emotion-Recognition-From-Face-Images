@@ -16,7 +16,9 @@ class Models(enum.Enum):
 kdef_dataset = KDEFDataset(transform=
 transforms.Compose([
     transforms.Resize((224, 224)), 
-    transforms.ToTensor()
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
     ]))
 
 train_size = int(0.9*len(kdef_dataset))
@@ -43,6 +45,7 @@ TRAIN_LOSS_PER_EPOCH = 8
 MODEL = Models.VGG
 
 if MODEL == Models.VGG:
+    batch_size = 32
     SAVE_PATH = "../models/VGG/VGG19_bn_pretrained_KDEF.pt"
     from vgg_pytorch import VGG 
     model = VGG.from_pretrained('vgg19_bn', num_classes=kdef_dataset.num_classes)
@@ -119,7 +122,7 @@ def test_loop(epoch):
     macro_f1s.append(f1_score(ground_truth, predictions, average='macro'))
     # mat = confusion_matrix(ground_truth, predictions, labels=[0, 1, 2, 3, 4, 5, 6])
     # confusion_mats.append(mat)
-    if epoch % 20 == 0 or epoch == EPOCHS - 1:
+    if (epoch + 1) % 20 == 0 or epoch == EPOCHS - 1:
         disp = ConfusionMatrixDisplay.from_predictions(ground_truth,
         predictions, 
         labels=[0, 1, 2, 3, 4, 5, 6],
@@ -128,9 +131,9 @@ def test_loop(epoch):
         xticks_rotation='vertical'
         )
         if MODEL == Models.VGG:
-            plt.savefig(os.path.join("..", "models", "cm_norm_vgg_pretrained.png"))
+            plt.savefig(os.path.join("..", "models", f"cm_norm_vgg_{epoch + 1}_pretrained.png"))
         else:
-            plt.savefig(os.path.join("..", "models", "cm_norm_eff_pretrained.png"))
+            plt.savefig(os.path.join("..", "models", f"cm_norm_eff_{epoch + 1}_pretrained.png"))
 
         plt.clf()
         disp = ConfusionMatrixDisplay.from_predictions(ground_truth,
@@ -140,9 +143,9 @@ def test_loop(epoch):
         xticks_rotation='vertical'
         )
         if MODEL == Models.VGG:
-            plt.savefig(os.path.join("..", "models", "cm_vgg_pretrained.png"))
+            plt.savefig(os.path.join("..", "models", f"cm_vgg_{epoch + 1}_pretrained.png"))
         else:
-            plt.savefig(os.path.join("..", "models", "cm_eff_pretrained.png"))
+            plt.savefig(os.path.join("..", "models", f"cm_eff_{epoch + 1}_pretrained.png"))
 
         plt.clf()
     
