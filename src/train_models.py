@@ -7,8 +7,11 @@ import torch.nn as nn
 import torch
 import matplotlib.pyplot as plt
 from sklearn.metrics import f1_score, ConfusionMatrixDisplay
-import os
+import os, enum
 
+class Models(enum.Enum):
+    VGG = 1
+    EfficientNet = 2
 
 kdef_dataset = KDEFDataset(transform=
 transforms.Compose([
@@ -37,19 +40,26 @@ LR = 0.001
 MOMENTUM = 0.9
 VALID_LOSS_PER_EPOCH = 4
 TRAIN_LOSS_PER_EPOCH = 8
-SAVE_PATH = "../models/EfficientNet/EfficientNet_b7_pretrained_KDEF.pt"
+MODEL = Models.VGG
+
+if MODEL == Models.VGG:
+    SAVE_PATH = "../models/VGG/VGG19_bn_pretrained_KDEF.pt"
+    from vgg_pytorch import VGG 
+    model = VGG.from_pretrained('vgg19_bn', num_classes=kdef_dataset.num_classes)
+    model.cuda()
+elif MODEL == Models.EfficientNet:
+    SAVE_PATH = "../models/EfficientNet/EfficientNet_b7_pretrained_KDEF.pt"
+    from efficientnet_pytorch import EfficientNet
+    model = EfficientNet.from_pretrained('efficientnet-b7')
+    model._fc = torch.nn.Linear(in_features=model._fc.in_features, out_features=kdef_dataset.num_classes, bias=True)
+    model.cuda()
+else:
+    raise ValueError("Model type is invalid.")
 
 def generate_save_path(idx, save_path=SAVE_PATH):
     return save_path.removesuffix(".pt") + f"_{idx}.pt"
 
 # model = M.efficientnet_b7(num_classes=kdef_dataset.num_classes).cuda()
-from efficientnet_pytorch import EfficientNet
-model = EfficientNet.from_pretrained('efficientnet-b7')
-model._fc= torch.nn.Linear(in_features=model._fc.in_features, out_features=kdef_dataset.num_classes, bias=True)
-model.cuda()
-# from vgg_pytorch import VGG 
-# model = VGG.from_pretrained('vgg19_bn', num_classes=kdef_dataset.num_classes)
-# model.cuda()
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=LR, weight_decay=0.0005)
@@ -117,7 +127,11 @@ def test_loop(epoch):
         display_labels=["afraid","angry","disgusted","happy","neutral","sad","surprised"],
         xticks_rotation='vertical'
         )
-        plt.savefig(os.path.join("..", "models", "cm_norm_eff_pretrained.png"))
+        if MODEL == Models.VGG:
+            plt.savefig(os.path.join("..", "models", "cm_norm_vgg_pretrained.png"))
+        else:
+            plt.savefig(os.path.join("..", "models", "cm_norm_eff_pretrained.png"))
+
         plt.clf()
         disp = ConfusionMatrixDisplay.from_predictions(ground_truth,
         predictions, 
@@ -125,7 +139,11 @@ def test_loop(epoch):
         display_labels=["afraid","angry","disgusted","happy","neutral","sad","surprised"],
         xticks_rotation='vertical'
         )
-        plt.savefig(os.path.join("..", "models", "cm_eff_pretrained.png"))
+        if MODEL == Models.VGG:
+            plt.savefig(os.path.join("..", "models", "cm_vgg_pretrained.png"))
+        else:
+            plt.savefig(os.path.join("..", "models", "cm_eff_pretrained.png"))
+
         plt.clf()
     
     for category in category_correct:
@@ -187,12 +205,20 @@ valid_loss, valid_epoch = tuple([list(tup) for tup in zip(*validation_losses)])
 plt.clf()
 plt.plot(train_epoch, train_loss)
 plt.plot(valid_epoch, valid_loss)
-# plt.title('VGG19 (Batch Normalized) Loss Plot')
-plt.title('EfficientNet (B7) Loss Plot')
+
+if MODEL == Models.VGG:
+    plt.title('VGG19 (Batch Normalized) Loss Plot')
+else:
+    plt.title('EfficientNet (B7) Loss Plot')
+
 plt.ylabel('Loss')
 plt.xlabel('Epoch')
 plt.legend(["Train", "Validation"], loc='upper right')
-plt.savefig("../models/losses_eff_pretrained.png")
+
+if MODEL == Models.VGG:
+    plt.savefig("../models/losses_vgg_pretrained.png")
+else:
+    plt.savefig("../models/losses_eff_pretrained.png")
 
 plt.clf()
 plt.plot(list(range(epoch + 1)), micro_f1s)
@@ -201,4 +227,8 @@ plt.title('F1 Scores')
 plt.ylabel('F1 Score')
 plt.xlabel('Epoch')
 plt.legend(['Micro F1', 'Macro F1'], loc='upper right')
-plt.savefig('../models/f1scores_eff_pretrained.png')
+
+if MODEL == Models.VGG:
+    plt.savefig('../models/f1scores_vgg_pretrained.png')
+else:
+    plt.savefig('../models/f1scores_eff_pretrained.png')
