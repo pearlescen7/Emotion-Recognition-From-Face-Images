@@ -20,10 +20,19 @@ idx2emote_and_color = \
 }
 
 def main():
+    if args.model == "VGG":
+        from vgg_pytorch import VGG 
+        model = VGG.from_pretrained('vgg19_bn', num_classes=kdef_num_classes)
+        model.load_state_dict(torch.load(model_path))
+        model.eval()
+    elif args.model == "EfficientNet":
+        from efficientnet_pytorch import EfficientNet
+        model = EfficientNet.from_pretrained('efficientnet-b7')
+        model._fc = torch.nn.Linear(in_features=model._fc.in_features, out_features=kdef_num_classes, bias=True)
+        model.eval()
+    else:
+        raise ValueError("Model type is invalid.")
 
-    model = M.vgg11_bn(num_classes=kdef_num_classes)
-    model.load_state_dict(torch.load(model_path))
-    model.eval()
     img_transforms = transforms.Compose([
             transforms.Resize((224,224)),
             transforms.ToTensor()
