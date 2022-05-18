@@ -94,11 +94,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.model == "EfficientNet":
         print("Using model: EfficientNet")
-        model_path = "../models/VGG/VGG19_bn_pretrained_KDEF.pt"
+        model_path = "../models/EfficientNet/EfficientNet_b7_pretrained_KDEF.pt"
         main()
     elif args.model == "VGG":
         print("Using model: VGG")
-        model_path = "../models/EfficientNet/EfficientNet_b7_pretrained_KDEF.pt"
+        model_path = "../models/VGG/VGG19_bn_pretrained_KDEF.pt"
         main()
     else:
         print("Unrecognized model type.\nAvailable options: EfficientNet, VGG")
