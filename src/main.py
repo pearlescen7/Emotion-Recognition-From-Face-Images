@@ -33,6 +33,12 @@ def main():
     else:
         raise ValueError("Model type is invalid.")
 
+    if args.cuda == "yes":
+        print("CUDA enabled.")
+        model.cuda()
+    elif args.cuda != "no":
+        raise ValueError("Invalid CUDA option.")
+
     img_transforms = transforms.Compose([
             transforms.Resize((224,224)),
             transforms.ToTensor(),
@@ -62,8 +68,10 @@ def main():
         for (x,y,w,h) in faces:
             face = cv2.cvtColor(frame[y:y+h, x:x+w], cv2.COLOR_BGR2RGB)
             pil_face = Image.fromarray(face)
-            input = img_transforms(pil_face)
-            output = model(input.unsqueeze(0))
+            input = img_transforms(pil_face).unsqueeze(0)
+            if args.cuda == "yes":
+                input = input.cuda()
+            output = model(input)
             _, predicted = torch.max(output.data, 1)
             emote, color = idx2emote_and_color[predicted.item()]
             cv2.rectangle(frame, (x,y), (x+w, y+h), color, 2)
@@ -90,6 +98,14 @@ if __name__ == "__main__":
             '''\
                 The model to use while classifying faces
                 Options: EfficientNet, VGG'''))
+    
+    parser.add_argument(
+        '--cuda', 
+        default="no",
+        help=textwrap.dedent(
+            '''\
+                Enables CUDA for faster processing.
+                Options: no, yes'''))
 
     args = parser.parse_args()
     if args.model == "EfficientNet":
@@ -98,7 +114,7 @@ if __name__ == "__main__":
         main()
     elif args.model == "VGG":
         print("Using model: VGG")
-        model_path = "../models/VGG/VGG19_bn_pretrained_KDEF.pt"
+        model_path = "../models/VGG/VGG19_bn_pretrained_FER_batch8.pt"
         main()
     else:
         print("Unrecognized model type.\nAvailable options: EfficientNet, VGG")
