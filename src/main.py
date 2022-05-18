@@ -36,7 +36,9 @@ def main():
     if args.cuda == "yes":
         print("CUDA enabled.")
         model.cuda()
-    elif args.cuda != "no":
+    elif args.cuda == "no":
+        print("CUDA disabled.")
+    else:
         raise ValueError("Invalid CUDA option.")
 
     img_transforms = transforms.Compose([
