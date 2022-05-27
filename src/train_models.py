@@ -1,5 +1,4 @@
 from torchvision import transforms
-import torchvision.models as M
 from torch.utils.data import random_split
 from dataset import KDEFDataset, KDEFDataLoader
 import torch.optim as optim
@@ -13,7 +12,7 @@ class Models(enum.Enum):
     VGG = 1
     EfficientNet = 2
 
-kdef_dataset = KDEFDataset(transform=
+kdef_dataset = KDEFDataset(root_dir="..\\data\\FER2013", transform=
 transforms.Compose([
     transforms.Resize((224, 224)), 
     transforms.ToTensor(),
@@ -21,7 +20,7 @@ transforms.Compose([
                                      std=[0.229, 0.224, 0.225])
     ]))
 
-train_size = int(0.9*len(kdef_dataset))
+train_size = int(0.7*len(kdef_dataset))
 test_size = (len(kdef_dataset) - train_size) // 2
 val_size = len(kdef_dataset) - train_size - test_size
 train_set, test_set, val_set = \
@@ -42,16 +41,15 @@ LR = 0.001
 MOMENTUM = 0.9
 VALID_LOSS_PER_EPOCH = 4
 TRAIN_LOSS_PER_EPOCH = 8
-MODEL = Models.VGG
+MODEL = Models.EfficientNet
 
 if MODEL == Models.VGG:
-    batch_size = 32
-    SAVE_PATH = "../models/VGG/VGG19_bn_pretrained_KDEF.pt"
+    SAVE_PATH = "../models/VGG/VGG19_bn_pretrained_FER_batch8_weighted.pt"
     from vgg_pytorch import VGG 
     model = VGG.from_pretrained('vgg19_bn', num_classes=kdef_dataset.num_classes)
     model.cuda()
 elif MODEL == Models.EfficientNet:
-    SAVE_PATH = "../models/EfficientNet/EfficientNet_b7_pretrained_KDEF.pt"
+    SAVE_PATH = "../models/EfficientNet/EfficientNet_b7_pretrained_FER_batch8_weighted.pt"
     from efficientnet_pytorch import EfficientNet
     model = EfficientNet.from_pretrained('efficientnet-b7')
     model._fc = torch.nn.Linear(in_features=model._fc.in_features, out_features=kdef_dataset.num_classes, bias=True)
@@ -62,11 +60,9 @@ else:
 def generate_save_path(idx, save_path=SAVE_PATH):
     return save_path.removesuffix(".pt") + f"_{idx}.pt"
 
-# model = M.efficientnet_b7(num_classes=kdef_dataset.num_classes).cuda()
-
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=LR, weight_decay=0.0005)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+criterion = nn.CrossEntropyLoss(weight=(torch.Tensor([35887/5121, 35887/4953, 35887/547, 35887/8989, 35887/6198, 35887/6077, 35887/4002]).cuda()))
+optimizer = optim.SGD(model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=1e-5)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
 
 micro_f1s = []
 macro_f1s = []
@@ -104,10 +100,6 @@ def test_loop(epoch):
             correct += (predicted == labels).sum().item()
             ground_truth.extend(list(int(label) for label in labels))
             predictions.extend(list(int(prediction) for prediction in predicted))
-            # micro_f1 += f1_score(labels, predicted, average='micro') * len(data["labels"])
-            # macro_f1 += f1_score(labels, predicted, average='macro') * len(data["labels"])
-            # if epoch == 0:
-            # confusion_mat += confusion_matrix(labels, predicted, labels=[0, 1, 2, 3, 4, 5, 6])
             
             for idx, (prediction, label) in enumerate(zip(predicted, labels)):
                 if(prediction == label):
@@ -120,8 +112,6 @@ def test_loop(epoch):
 
     micro_f1s.append(f1_score(ground_truth, predictions, average='micro'))
     macro_f1s.append(f1_score(ground_truth, predictions, average='macro'))
-    # mat = confusion_matrix(ground_truth, predictions, labels=[0, 1, 2, 3, 4, 5, 6])
-    # confusion_mats.append(mat)
     if (epoch + 1) % 20 == 0 or epoch == EPOCHS - 1:
         disp = ConfusionMatrixDisplay.from_predictions(ground_truth,
         predictions, 
@@ -131,9 +121,9 @@ def test_loop(epoch):
         xticks_rotation='vertical'
         )
         if MODEL == Models.VGG:
-            plt.savefig(os.path.join("..", "models", f"cm_norm_vgg_{epoch + 1}_pretrained.png"))
+            plt.savefig(os.path.join("..", "models", f"cm_norm_vgg_{epoch + 1}_pretrained_FER_batch8_weighted.png"), bbox_inches='tight', pad_inches=1)
         else:
-            plt.savefig(os.path.join("..", "models", f"cm_norm_eff_{epoch + 1}_pretrained.png"))
+            plt.savefig(os.path.join("..", "models", f"cm_norm_eff_{epoch + 1}_pretrained_FER_batch8_weighted.png"), bbox_inches='tight', pad_inches=1)
 
         plt.clf()
         disp = ConfusionMatrixDisplay.from_predictions(ground_truth,
@@ -143,9 +133,9 @@ def test_loop(epoch):
         xticks_rotation='vertical'
         )
         if MODEL == Models.VGG:
-            plt.savefig(os.path.join("..", "models", f"cm_vgg_{epoch + 1}_pretrained.png"))
+            plt.savefig(os.path.join("..", "models", f"cm_vgg_{epoch + 1}_pretrained_FER_batch8_weighted.png"), bbox_inches='tight', pad_inches=1)
         else:
-            plt.savefig(os.path.join("..", "models", f"cm_eff_{epoch + 1}_pretrained.png"))
+            plt.savefig(os.path.join("..", "models", f"cm_eff_{epoch + 1}_pretrained_FER_batch8_weighted.png"), bbox_inches='tight', pad_inches=1)
 
         plt.clf()
     
@@ -173,8 +163,8 @@ for epoch in range(EPOCHS):
         running_loss += loss.item()
 
         if i % int(len(train_loader)/TRAIN_LOSS_PER_EPOCH) == 0 and i!=0:
-            print(f"[EPOCH {epoch+1}, BATCH {i+1}, TOTAL {epoch*train_size + i*batch_size}] training loss: {running_loss/TRAIN_LOSS_PER_EPOCH:.8f}")
-            train_losses.append((running_loss/TRAIN_LOSS_PER_EPOCH, epoch))
+            print(f"[EPOCH {epoch+1}, BATCH {i+1}, TOTAL {epoch*train_size + i*batch_size}] training loss: {running_loss/i:.8f}")
+            train_losses.append((running_loss/i, epoch))
             running_loss = 0.0
 
         if i % int(len(train_loader)/VALID_LOSS_PER_EPOCH) == 0 and i!=0:
@@ -187,7 +177,7 @@ for epoch in range(EPOCHS):
 
                     output = model(inputs)
                     loss = criterion(output, labels)
-            
+
                     valid_loss += loss.item()
             valid_loss /= len(val_loader)
             validation_losses.append((valid_loss, epoch))
@@ -219,9 +209,9 @@ plt.xlabel('Epoch')
 plt.legend(["Train", "Validation"], loc='upper right')
 
 if MODEL == Models.VGG:
-    plt.savefig("../models/losses_vgg_pretrained.png")
+    plt.savefig("../models/losses_vgg_pretrained_FER_batch8_weighted.png", bbox_inches='tight', pad_inches=1)
 else:
-    plt.savefig("../models/losses_eff_pretrained.png")
+    plt.savefig("../models/losses_eff_pretrained_FER_batch8_weighted.png", bbox_inches='tight', pad_inches=1)
 
 plt.clf()
 plt.plot(list(range(epoch + 1)), micro_f1s)
@@ -229,9 +219,9 @@ plt.plot(list(range(epoch + 1)), macro_f1s)
 plt.title('F1 Scores')
 plt.ylabel('F1 Score')
 plt.xlabel('Epoch')
-plt.legend(['Micro F1', 'Macro F1'], loc='upper right')
+plt.legend(['Micro F1', 'Macro F1'], loc='lower right')
 
 if MODEL == Models.VGG:
-    plt.savefig('../models/f1scores_vgg_pretrained.png')
+    plt.savefig('../models/f1scores_vgg_pretrained_FER_batch8_weighted.png', bbox_inches='tight', pad_inches=1)
 else:
-    plt.savefig('../models/f1scores_eff_pretrained.png')
+    plt.savefig('../models/f1scores_eff_pretrained_FER_batch8_weighted.png', bbox_inches='tight', pad_inches=1)
