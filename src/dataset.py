@@ -57,12 +57,13 @@ class KDEFDataset(Dataset):
                 # Therefore, it is preferable to train and serve a model with the same input types. 
                 # See also below the antialias parameter, which can help making the output of PIL images and tensors closer.
                 img = cv2.imread(img_path)
-                img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                faces = face_detector.detectMultiScale(img_gray, 1.1, 4)
-                for (x,y,w,h) in faces:
-                    face = cv2.cvtColor(img[y:y+h, x:x+w], cv2.COLOR_BGR2RGB)
-                    pil_face = Image.fromarray(face)
-
+                # img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                #print(img_gray.shape)
+                # faces = face_detector.detectMultiScale(img_gray, 1.1, 4)
+                # for (x,y,w,h) in faces:
+                #     face = cv2.cvtColor(img[y:y+h, x:x+w], cv2.COLOR_BGR2RGB)
+                #     pil_face = Image.fromarray(face)
+                pil_face = Image.fromarray(img)
                 self.data[data_idx] = LabeledImage(filename, pil_face, self.emote2label[label])
                 data_idx += 1
 
@@ -119,8 +120,8 @@ def main():
         transform=transforms.Compose([
             transforms.Resize((224,224)),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                          std=[0.229, 0.224, 0.225])
         ]))
 
     data_loader = KDEFDataLoader(kdef_dataset)
