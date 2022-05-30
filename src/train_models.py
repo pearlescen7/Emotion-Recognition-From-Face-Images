@@ -14,10 +14,8 @@ class Models(enum.Enum):
 
 kdef_dataset = KDEFDataset(root_dir="..\\data\\FER2013", transform=
 transforms.Compose([
-    transforms.Resize((224, 224)), 
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+    transforms.Resize((48, 48)), 
+    transforms.ToTensor()
     ]))
 
 train_size = int(0.7*len(kdef_dataset))
@@ -41,15 +39,15 @@ LR = 0.001
 MOMENTUM = 0.9
 VALID_LOSS_PER_EPOCH = 4
 TRAIN_LOSS_PER_EPOCH = 8
-MODEL = Models.EfficientNet
+MODEL = Models.VGG
 
 if MODEL == Models.VGG:
-    SAVE_PATH = "../models/VGG/VGG19_bn_pretrained_FER_batch8_weighted.pt"
-    from vgg_pytorch import VGG 
-    model = VGG.from_pretrained('vgg19_bn', num_classes=kdef_dataset.num_classes)
+    SAVE_PATH = "../models/VGG/VGG19_bn_pretrained_FER_batch8_weighted_one_channel.pt"
+    from temp_model import VGG19 
+    model = VGG19()
     model.cuda()
 elif MODEL == Models.EfficientNet:
-    SAVE_PATH = "../models/EfficientNet/EfficientNet_b7_pretrained_FER_batch8_weighted.pt"
+    SAVE_PATH = "../models/EfficientNet/EfficientNet_b7_pretrained_FER_batch8_weighted_one_channel.pt"
     from efficientnet_pytorch import EfficientNet
     model = EfficientNet.from_pretrained('efficientnet-b7')
     model._fc = torch.nn.Linear(in_features=model._fc.in_features, out_features=kdef_dataset.num_classes, bias=True)
@@ -121,9 +119,9 @@ def test_loop(epoch):
         xticks_rotation='vertical'
         )
         if MODEL == Models.VGG:
-            plt.savefig(os.path.join("..", "models", f"cm_norm_vgg_{epoch + 1}_pretrained_FER_batch8_weighted.png"), bbox_inches='tight', pad_inches=1)
+            plt.savefig(os.path.join("..", "models", f"cm_norm_vgg_{epoch + 1}_pretrained_FER_batch8_weighted_one_channel.png"), bbox_inches='tight', pad_inches=1)
         else:
-            plt.savefig(os.path.join("..", "models", f"cm_norm_eff_{epoch + 1}_pretrained_FER_batch8_weighted.png"), bbox_inches='tight', pad_inches=1)
+            plt.savefig(os.path.join("..", "models", f"cm_norm_eff_{epoch + 1}_pretrained_FER_batch8_weighted_one_channel.png"), bbox_inches='tight', pad_inches=1)
 
         plt.clf()
         disp = ConfusionMatrixDisplay.from_predictions(ground_truth,
@@ -133,9 +131,9 @@ def test_loop(epoch):
         xticks_rotation='vertical'
         )
         if MODEL == Models.VGG:
-            plt.savefig(os.path.join("..", "models", f"cm_vgg_{epoch + 1}_pretrained_FER_batch8_weighted.png"), bbox_inches='tight', pad_inches=1)
+            plt.savefig(os.path.join("..", "models", f"cm_vgg_{epoch + 1}_pretrained_FER_batch8_weighted_one_channel.png"), bbox_inches='tight', pad_inches=1)
         else:
-            plt.savefig(os.path.join("..", "models", f"cm_eff_{epoch + 1}_pretrained_FER_batch8_weighted.png"), bbox_inches='tight', pad_inches=1)
+            plt.savefig(os.path.join("..", "models", f"cm_eff_{epoch + 1}_pretrained_FER_batch8_weighted_one_channel.png"), bbox_inches='tight', pad_inches=1)
 
         plt.clf()
     
@@ -209,9 +207,9 @@ plt.xlabel('Epoch')
 plt.legend(["Train", "Validation"], loc='upper right')
 
 if MODEL == Models.VGG:
-    plt.savefig("../models/losses_vgg_pretrained_FER_batch8_weighted.png", bbox_inches='tight', pad_inches=1)
+    plt.savefig("../models/losses_vgg_pretrained_FER_batch8_weighted_one_channel.png", bbox_inches='tight', pad_inches=1)
 else:
-    plt.savefig("../models/losses_eff_pretrained_FER_batch8_weighted.png", bbox_inches='tight', pad_inches=1)
+    plt.savefig("../models/losses_eff_pretrained_FER_batch8_weighted_one_channel.png", bbox_inches='tight', pad_inches=1)
 
 plt.clf()
 plt.plot(list(range(epoch + 1)), micro_f1s)
@@ -222,6 +220,6 @@ plt.xlabel('Epoch')
 plt.legend(['Micro F1', 'Macro F1'], loc='lower right')
 
 if MODEL == Models.VGG:
-    plt.savefig('../models/f1scores_vgg_pretrained_FER_batch8_weighted.png', bbox_inches='tight', pad_inches=1)
+    plt.savefig('../models/f1scores_vgg_pretrained_FER_batch8_weighted_one_channel.png', bbox_inches='tight', pad_inches=1)
 else:
-    plt.savefig('../models/f1scores_eff_pretrained_FER_batch8_weighted.png', bbox_inches='tight', pad_inches=1)
+    plt.savefig('../models/f1scores_eff_pretrained_FER_batch8_weighted_one_channel.png', bbox_inches='tight', pad_inches=1)
