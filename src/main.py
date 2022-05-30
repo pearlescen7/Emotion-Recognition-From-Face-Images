@@ -25,10 +25,17 @@ def main():
         model = VGG.from_pretrained('vgg19_bn', num_classes=kdef_num_classes)
         model.load_state_dict(torch.load(model_path))
         model.eval()
+        # from temp_model import VGG19
+        # model = VGG19()
+        # model.load_state_dict(torch.load(model_path))
+        # model.eval()
     elif args.model == "EfficientNet":
         from efficientnet_pytorch import EfficientNet
+        # model = EfficientNet.from_pretrained('efficientnet-b7')
+        # model._fc = torch.nn.Linear(in_features=model._fc.in_features, out_features=kdef_num_classes, bias=True)
         model = EfficientNet.from_pretrained('efficientnet-b7')
         model._fc = torch.nn.Linear(in_features=model._fc.in_features, out_features=kdef_num_classes, bias=True)
+        model.load_state_dict(torch.load(model_path))
         model.eval()
     else:
         raise ValueError("Model type is invalid.")
@@ -49,7 +56,7 @@ def main():
             ])
 
     face_detector = cv2.CascadeClassifier("../data/haarcascades/haarcascade_frontalface_alt.xml")
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(1)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
@@ -69,6 +76,7 @@ def main():
         
         for (x,y,w,h) in faces:
             face = cv2.cvtColor(frame[y:y+h, x:x+w], cv2.COLOR_BGR2RGB)
+            # face = frame_gray[y:y+h, x:x+w]
             pil_face = Image.fromarray(face)
             input = img_transforms(pil_face).unsqueeze(0)
             if args.cuda == "yes":
