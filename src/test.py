@@ -7,19 +7,20 @@ import torch
 from dataset import KDEFDataset, KDEFDataLoader
 from torch.utils.data import random_split
 from efficientnet_pytorch import EfficientNet
-from vgg_pytorch import VGG 
+from vgg_pytorch import VGG
+from temp_model import VGG19 
 
 
 kdef_num_classes = 7
 
-model_path = "../models/EfficientNet/EfficientNet_b7_pretrained_FER_batch8_weighted.pt"
-model = EfficientNet.from_pretrained('efficientnet-b7')
-model._fc= torch.nn.Linear(in_features=model._fc.in_features, out_features=kdef_num_classes, bias=True)
-model.load_state_dict(torch.load(model_path))
-
-# model_path = "../models/VGG/vgg19_bn_pretrained_FER_batch8_weighted.pt"
-# model = VGG.from_pretrained('vgg19_bn', num_classes=kdef_num_classes)
+# model_path = "../models/EfficientNet/EfficientNet_b7_pretrained_FER_batch8_weighted.pt"
+# model = EfficientNet.from_pretrained('efficientnet-b7')
+# model._fc= torch.nn.Linear(in_features=model._fc.in_features, out_features=kdef_num_classes, bias=True)
 # model.load_state_dict(torch.load(model_path))
+
+model_path = "../models/VGG/VGG19_bn_pretrained_FER_batch8_weighted_one_channel_60.pt"
+model = VGG19()
+model.load_state_dict(torch.load(model_path))
 
 # model_path = "../models/VGG/vgg19_bn_KDEF.pt"
 # model = M.vgg19_bn(num_classes=kdef_num_classes)
@@ -27,10 +28,10 @@ model.load_state_dict(torch.load(model_path))
 
 model.eval()
 img_transforms = transforms.Compose([
-        transforms.Resize((224,224)),
+        transforms.Resize((48,48)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                    std=[0.229, 0.224, 0.225])
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+        #                             std=[0.229, 0.224, 0.225])
         ])
 
 idx2emote_and_color = \
@@ -78,7 +79,7 @@ for fname in fnames:
     faces = face_detector.detectMultiScale(frame_gray, 1.1, 3)
     for (x,y,w,h) in faces:
         face = cv2.cvtColor(frame[y:y+h, x:x+w], cv2.COLOR_BGR2RGB)
-        print(face.shape)
+        face = frame_gray[y:y+h, x:x+w]
         pil_face = Image.fromarray(face)
         input = img_transforms(pil_face)
         # input.show()
@@ -88,6 +89,9 @@ for fname in fnames:
         # print(f'tensor: {data}')
         _, predicted = torch.max(data, 1)
         emote, color = idx2emote_and_color[predicted.item()]
+        cv2.rectangle(frame, (x,y), (x+w, y+h), color, 2)
+        cv2.putText(frame, emote, (x,y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
         print(f'predicted emotion: {emote}')
         print(f'true emotion: {fname[1]}')
         print(emote == fname[1])
+    Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).save(f'{fname[0]} labeled.{fname[0].split(".")[-1]}')
